@@ -1,26 +1,27 @@
 package tftp.datagram;
 
-import java.net.DatagramPacket;
+import tftp.sendmode.SendMode;
+
 import java.nio.charset.StandardCharsets;
 
 import static util.Tftp.appendNullByte;
 
-public class WrqDatagram extends TftpDatagram {
+public class WrqPacket extends TftpPacket {
     private final static byte[] OPCODE = {0, 2};
 
     private final String filename;
-    private final String mode;
+    private final SendMode sendMode;
 
 
-    public WrqDatagram(String filename, String mode) {
+    public WrqPacket(String filename, SendMode sendMode) {
         this.filename = filename;
-        this.mode = mode;
+        this.sendMode = sendMode;
     }
 
 
     @Override
     public byte[] toBytes() {
-        byte[] sendModeBytes = appendNullByte(mode.getBytes(StandardCharsets.US_ASCII));
+        byte[] sendModeBytes = appendNullByte(sendMode.toString().toLowerCase().getBytes(StandardCharsets.US_ASCII));
         byte[] filenameBytes = appendNullByte(filename.getBytes(StandardCharsets.US_ASCII));
 
         byte[] data = new byte[OPCODE.length + filenameBytes.length + sendModeBytes.length];
@@ -34,7 +35,7 @@ public class WrqDatagram extends TftpDatagram {
         return filename;
     }
 
-    public String getMode() {
-        return mode;
+    public SendMode getMode() {
+        return sendMode;
     }
 }

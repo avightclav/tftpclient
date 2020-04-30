@@ -2,12 +2,12 @@ package tftp.datagram;
 
 import util.Tftp;
 
-public class DataDatagram extends TftpDatagram {
+public class DataPacket extends TftpPacket {
     private final static byte[] OPCODE = {0, 3};
     private final short blockNum;
     private final byte[] data;
 
-    public DataDatagram(short blockNum, byte[] data) {
+    public DataPacket(short blockNum, byte[] data) {
         this.blockNum = blockNum;
         this.data = data;
     }

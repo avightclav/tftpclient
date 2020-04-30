@@ -2,7 +2,7 @@ package tftp.datagram;
 
 import util.Tftp;
 
-public class AckDatagram extends TftpDatagram {
+public class AckPacket extends TftpPacket {
     private final byte[] OPCODE = new byte[]{0, 4};
 
     public short getAcknowledgeNumber() {
@@ -11,7 +11,7 @@ public class AckDatagram extends TftpDatagram {
 
     private final short acknowledgeNumber;
 
-    public AckDatagram(short acknowledgeNumber) {
+    public AckPacket(short acknowledgeNumber) {
         this.acknowledgeNumber = acknowledgeNumber;
     }
 

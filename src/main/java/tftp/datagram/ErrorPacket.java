@@ -1,10 +1,10 @@
 package tftp.datagram;
 
-public class ErrorDatagram extends TftpDatagram{
+public class ErrorPacket extends TftpPacket {
     private final int errorCode;
     private final String errorMessage;
 
-    public ErrorDatagram(int errorCode, String errorMessage) {
+    public ErrorPacket(int errorCode, String errorMessage) {
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
     }

@@ -33,7 +33,7 @@ public class Tftp {
     }
 
     public static DatagramPacket getRrqDatagram(SocketAddress address, String filename) {
-        byte[] sendModeBytes = appendNullByte("octet".getBytes(StandardCharsets.US_ASCII));
+        byte[] sendModeBytes = appendNullByte("netascii".getBytes(StandardCharsets.US_ASCII));
         byte[] filenameBytes = appendNullByte(filename.getBytes(StandardCharsets.US_ASCII));
 
         byte[] data = new byte[RRQ_WRQ_MIN_LENGTH + sendModeBytes.length + filenameBytes.length];
@@ -46,5 +46,9 @@ public class Tftp {
 
     public static byte[] shortToBytesArray(short number) {
         return new byte[]{(byte)(number >>>8),(byte)(number &0xFF)};
+    }
+
+    public static short byteToShort(byte high, byte low) {
+        return (short) (((high & 0xFF) << 8) | (low & 0xFF));
     }
 }
