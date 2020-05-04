@@ -7,6 +7,8 @@ import tftp.util.Util;
 
 import java.util.Arrays;
 
+import static tftp.util.Util.byteToShort;
+
 public abstract class TftpPacket {
 
     public static final short RRQ_OPCODE = 1;
@@ -70,15 +72,15 @@ public abstract class TftpPacket {
                 return new WrqPacket(filename, mode);
             }
             case DATA_OPCODE:
-                final short blockNumber = Util.byteToShort(data[2], data[3]);
+                final short blockNumber = byteToShort(data[2], data[3]);
                 final int dataStartIndex = 4;
                 byte[] dataBody = Arrays.copyOfRange(data, dataStartIndex, length);
                 return new DataPacket(blockNumber, dataBody);
             case ACK_OPCODE:
-                short acknowledgeNumber = Util.byteToShort(data[2], data[3]);
+                short acknowledgeNumber = byteToShort(data[2], data[3]);
                 return new AckPacket(acknowledgeNumber);
             case ERROR_OPCODE:
-                int errorCode = data[2] * 16 + data[3];
+                short errorCode = byteToShort(data[2], data[3]);
                 int errorMessageStartIndex = 4;
                 int errorMessageEndIndex = 4;
                 while (data[errorMessageEndIndex] != 0)
