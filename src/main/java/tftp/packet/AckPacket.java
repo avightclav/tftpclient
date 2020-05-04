@@ -1,6 +1,6 @@
-package tftp.datagram;
+package tftp.packet;
 
-import util.Tftp;
+import tftp.util.Util;
 
 public class AckPacket extends TftpPacket {
     private final byte[] OPCODE = new byte[]{0, 4};
@@ -17,7 +17,7 @@ public class AckPacket extends TftpPacket {
 
     @Override
     public byte[] toBytes() {
-        byte[] acknowledgeNumberBytes = Tftp.shortToBytesArray(acknowledgeNumber);
+        byte[] acknowledgeNumberBytes = Util.shortToBytesArray(acknowledgeNumber);
         byte[] byteRepresentation = new byte[OPCODE.length + acknowledgeNumberBytes.length];
         System.arraycopy(OPCODE, 0, byteRepresentation, 0, OPCODE.length);
         System.arraycopy(acknowledgeNumberBytes, 0, byteRepresentation, OPCODE.length, acknowledgeNumberBytes.length);

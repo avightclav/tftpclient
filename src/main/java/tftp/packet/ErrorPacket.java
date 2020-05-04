@@ -1,4 +1,4 @@
-package tftp.datagram;
+package tftp.packet;
 
 public class ErrorPacket extends TftpPacket {
     private final int errorCode;

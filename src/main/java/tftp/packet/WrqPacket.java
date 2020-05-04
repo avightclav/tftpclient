@@ -1,10 +1,10 @@
-package tftp.datagram;
+package tftp.packet;
 
 import tftp.sendmode.SendMode;
 
 import java.nio.charset.StandardCharsets;
 
-import static util.Tftp.appendNullByte;
+import static tftp.util.Util.appendNullByte;
 
 public class WrqPacket extends TftpPacket {
     private final static byte[] OPCODE = {0, 2};
@@ -18,6 +18,13 @@ public class WrqPacket extends TftpPacket {
         this.sendMode = sendMode;
     }
 
+    public String getFilename() {
+        return filename;
+    }
+
+    public SendMode getMode() {
+        return sendMode;
+    }
 
     @Override
     public byte[] toBytes() {
@@ -29,13 +36,5 @@ public class WrqPacket extends TftpPacket {
         System.arraycopy(filenameBytes, 0, data, 2, filenameBytes.length);
         System.arraycopy(sendModeBytes, 0, data, 2 + filenameBytes.length, sendModeBytes.length);
         return data;
-    }
-
-    public String getFilename() {
-        return filename;
-    }
-
-    public SendMode getMode() {
-        return sendMode;
     }
 }

@@ -1,6 +1,6 @@
-package tftp.datagram;
+package tftp.packet;
 
-import util.Tftp;
+import tftp.util.Util;
 
 public class DataPacket extends TftpPacket {
     private final static byte[] OPCODE = {0, 3};
@@ -23,7 +23,7 @@ public class DataPacket extends TftpPacket {
     @Override
     public byte[] toBytes() {
         byte[]  byteRepresentation = new byte[OPCODE.length + 2 + data.length];
-        byte[] blockNumberBytes = Tftp.shortToBytesArray(blockNum);
+        byte[] blockNumberBytes = Util.shortToBytesArray(blockNum);
 
         System.arraycopy(OPCODE, 0, byteRepresentation, 0, OPCODE.length);
         System.arraycopy(blockNumberBytes, 0, byteRepresentation, OPCODE.length, blockNumberBytes.length);

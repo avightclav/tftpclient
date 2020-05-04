@@ -2,7 +2,8 @@ import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-import util.TftpClient;
+import tftp.TftpClient;
+import tftp.sendmode.SendMode;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,27 +22,40 @@ public class Main {
 
     private Path rootPathPath;
 
-    private boolean parseCommand(String command) {
+    private SendMode sendMode = SendMode.OCTET;
+
+    private boolean doCommand(String command) {
 
         String[] parts = command.split(" ");
 
-        if (parts[0].equalsIgnoreCase("exit"))
-            return true;
         try {
-            if (parts.length == 2) {
+            if (parts.length == 1) {
+                if (parts[0].equalsIgnoreCase("exit"))
+                    return true;
+                if (parts[0].equalsIgnoreCase("octet")) {
+                    sendMode = SendMode.OCTET;
+                    return false;
+                }
+                if (parts[0].equalsIgnoreCase("netascii")) {
+                    sendMode = SendMode.NETASCII;
+                    return false;
+                }
+                System.out.println("?Invalid command");
+            } else if (parts.length == 2) {
                 if (parts[0].equalsIgnoreCase("get"))
-                    TftpClient.getFile(address, port, Paths.get(rootPath, parts[1]).toString(), parts[1]);
-
-                if (parts[0].equalsIgnoreCase("put"))
-                    TftpClient.sendFile(address, port, Paths.get(rootPath, parts[1]).toString(), parts[1]);
+                    TftpClient.getFile(address, port, sendMode, Paths.get(rootPath, parts[1]).toString(), parts[1]);
+                else if (parts[0].equalsIgnoreCase("put"))
+                    TftpClient.putFile(address, port, sendMode, Paths.get(rootPath, parts[1]).toString(), parts[1]);
+                else
+                    System.out.println("?Invalid command");
             } else if (parts.length == 3) {
                 if (parts[0].equalsIgnoreCase("get"))
-                    TftpClient.getFile(address, port, Paths.get(rootPath, parts[2]).toString(), parts[1]);
-
-                if (parts[0].equalsIgnoreCase("put"))
-                    TftpClient.sendFile(address, port, Paths.get(rootPath, parts[1]).toString(), parts[2]);
-            }
-            else {
+                    TftpClient.getFile(address, port, sendMode, Paths.get(rootPath, parts[2]).toString(), parts[1]);
+                else if (parts[0].equalsIgnoreCase("put"))
+                    TftpClient.putFile(address, port, sendMode, Paths.get(rootPath, parts[1]).toString(), parts[2]);
+                else
+                    System.out.println("?Invalid command");
+            } else {
                 System.out.println("?Invalid command");
             }
         } catch (Exception e) {
@@ -51,7 +65,7 @@ public class Main {
         return false;
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         try {
             new Main().doMain(args);
         } catch (CmdLineException e) {
@@ -68,13 +82,13 @@ public class Main {
         CmdLineParser argumentParser = new CmdLineParser(this);
         argumentParser.parseArgument(args);
 
-        Scanner in = new Scanner(System.in);
-        String s = in.nextLine();
-        boolean isExit = parseCommand(s);
+        Scanner scanner = new Scanner(System.in);
+        String s = scanner.nextLine();
+        boolean isExit = doCommand(s);
 
         while (!isExit) {
-            s = in.nextLine();
-            isExit = parseCommand(s);
+            s = scanner.nextLine();
+            isExit = doCommand(s);
         }
     }
 }
