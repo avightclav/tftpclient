@@ -25,7 +25,7 @@ public class DataPacket extends TftpPacket {
     }
 
     private static byte[] toBytes(short blockNum, byte[] data) {
-        byte[]  packet = new byte[OPCODE.length + 2 + data.length];
+        byte[] packet = new byte[OPCODE.length + 2 + data.length];
         byte[] blockNumberBytes = Util.shortToBytesArray(blockNum);
 
         System.arraycopy(OPCODE, 0, packet, 0, OPCODE.length);

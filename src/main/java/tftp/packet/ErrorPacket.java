@@ -1,6 +1,5 @@
 package tftp.packet;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import static tftp.util.Util.appendNullByte;
@@ -25,7 +24,6 @@ public class ErrorPacket extends TftpPacket {
     public final static byte[] TFTP_ERROR_UNKNOWN_TID_BYTES = {0, TFTP_ERROR_UNKNOWN_TID};
     public final static byte[] TFTP_ERROR_FILE_ALREADY_EXISTS_BYTES = {0, TFTP_ERROR_FILE_ALREADY_EXISTS};
     public final static byte[] TFTP_ERROR_NO_SUCH_USER_BYTES = {0, TFTP_ERROR_NO_SUCH_USER};
-
 
 
     private final int errorCode;

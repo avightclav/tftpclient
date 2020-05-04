@@ -3,7 +3,6 @@ package tftp.packet;
 import tftp.exception.PacketWithUnsupportedOpcodeException;
 import tftp.exception.UnterminatedPacketFieldException;
 import tftp.sendmode.SendMode;
-import tftp.util.Util;
 
 import java.util.Arrays;
 

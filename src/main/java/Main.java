@@ -5,13 +5,12 @@ import org.kohsuke.args4j.Option;
 import tftp.TftpClient;
 import tftp.sendmode.SendMode;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
 
 public class Main {
 
-    @Argument(index = 0, required = true, usage = "tftp destination address", metaVar = "address")
+    @Argument(required = true, usage = "tftp destination address", metaVar = "address")
     private String address;
 
     @Argument(index = 1, required = true, usage = "tftp destination port", metaVar = "port")
@@ -19,8 +18,6 @@ public class Main {
 
     @Option(name = "--root", usage = "root path for files", metaVar = "path")
     private String rootPath = "";
-
-    private Path rootPathPath;
 
     private SendMode sendMode = SendMode.OCTET;
 

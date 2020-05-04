@@ -9,13 +9,11 @@ public class Util {
         int rightLimit = 122; // letter 'z'
         Random random = new Random();
 
-        String generatedString = random.ints(leftLimit, rightLimit + 1)
+        return random.ints(leftLimit, rightLimit + 1)
                 .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
                 .limit(filenameLength)
                 .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
                 .toString();
-
-        return generatedString;
     }
 
     public static byte[] appendNullByte(byte[] data) {
@@ -27,7 +25,7 @@ public class Util {
     // https://www.baeldung.com/java-random-string
 
     public static byte[] shortToBytesArray(short number) {
-        return new byte[]{(byte)(number >>>8),(byte)(number &0xFF)};
+        return new byte[]{(byte) (number >>> 8), (byte) (number & 0xFF)};
     }
 
     public static short byteToShort(byte high, byte low) {

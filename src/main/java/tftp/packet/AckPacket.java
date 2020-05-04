@@ -13,6 +13,7 @@ public class AckPacket extends TftpPacket {
         this.packet = toBytes(acknowledgeNumber);
         this.length = this.packet.length;
     }
+
     private static byte[] toBytes(short acknowledgeNumber) {
         byte[] acknowledgeNumberBytes = Util.shortToBytesArray(acknowledgeNumber);
         byte[] packet = new byte[OPCODE.length + acknowledgeNumberBytes.length];
