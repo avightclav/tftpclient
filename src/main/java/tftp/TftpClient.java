@@ -1,5 +1,6 @@
 package tftp;
 
+import tftp.exception.ErrorDatagramException;
 import tftp.packet.*;
 import tftp.sendmode.SendMode;
 
@@ -33,30 +34,37 @@ public class TftpClient {
 
             final RrqPacket rrqPacket = new RrqPacket(remoteFilename, sendMode);
             final DatagramPacket rrqDatagram = new DatagramPacket(rrqPacket.toBytes(), rrqPacket.getLength(), remoteAddress);
+
             final DatagramPacket incomingDatagram = new DatagramPacket(new byte[DATAGRAM_MAX_SIZE], DATAGRAM_MAX_SIZE);
+            TftpPacket inputPacket = null;
+            DataPacket lastDataPacket;
 
             int attempts = 0;
             boolean gotResponse = false;
-            while (!gotResponse) {
-                attempts++;
+            while (!gotResponse && attempts++ < MAX_ATTEMPTS) {
                 socket.send(rrqDatagram);
 
                 try {
                     socket.receive(incomingDatagram);
-                    gotResponse = true;
-                } catch (SocketTimeoutException e) {
-                    if (attempts >= MAX_ATTEMPTS)
-                        throw new SocketTimeoutException();
+
+                    inputPacket = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
+                    if (inputPacket instanceof DataPacket && ((DataPacket) inputPacket).getBlockNum() == 1) {
+                        gotResponse = true;
+                    } else if (inputPacket instanceof ErrorPacket)
+                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                    else
+                        System.err.println("Received non-data packet, skipping it...");
+
+                } catch (SocketTimeoutException ignored) {
                 }
             }
+            if (attempts == MAX_ATTEMPTS + 1)
+                throw new SocketTimeoutException();
 
-            TftpPacket inputPacket = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
-            if (!(inputPacket instanceof DataPacket))
-                throw new Exception("");
-            DataPacket lastDataPacket = (DataPacket) inputPacket;
+            lastDataPacket = (DataPacket) inputPacket;
             tempFileOutputStream.write(lastDataPacket.getData());
-
             long realDataLength = lastDataPacket.getData().length;
+
             final SocketAddress sessionAddress = incomingDatagram.getSocketAddress();
 
             AckPacket lastAckPacket = new AckPacket(lastDataPacket.getBlockNum());
@@ -70,22 +78,21 @@ public class TftpClient {
 
                 if (sessionAddress.equals(incomingDatagram.getSocketAddress())) {
                     inputPacket = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
-                    if (!(inputPacket instanceof DataPacket))
-                        throw new Exception("");
-
-                    lastDataPacket = (DataPacket) inputPacket;
-
-                    if (lastDataPacket.getBlockNum() == (short) (lastAckPacket.getAcknowledgeNumber() + 1)) {
-                        shouldAck = true;
-                        tempFileOutputStream.write(lastDataPacket.getData());
-                        realDataLength += lastDataPacket.getData().length;
-                    } else {
-                        if (lastDataPacket.getBlockNum() != lastAckPacket.getAcknowledgeNumber()) {
+                    if (inputPacket instanceof DataPacket) {
+                        lastDataPacket = (DataPacket) inputPacket;
+                        if (lastDataPacket.getBlockNum() == (short) (lastAckPacket.getAcknowledgeNumber() + 1)) {
+                            shouldAck = true;
+                            tempFileOutputStream.write(lastDataPacket.getData());
+                            realDataLength += lastDataPacket.getData().length;
+                        } else if (lastDataPacket.getBlockNum() != lastAckPacket.getAcknowledgeNumber()) {
                             shouldAck = true;
                         }
-                    }
+                    } else if (inputPacket instanceof ErrorPacket)
+                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                    else
+                        System.err.println("Received non-data packet, skipping it...");
                 } else { // if rrq has been duplicated skip it
-                    final ErrorPacket errorPacket = new ErrorPacket(ErrorPacket.TFTP_ERROR_UNKNOWN_TID, "My TID already in use");
+                    final ErrorPacket errorPacket = new ErrorPacket(ErrorPacket.TFTP_ERROR_UNKNOWN_TID, "This TID already in use");
                     final DatagramPacket errorDatagram = new DatagramPacket(errorPacket.toBytes(),
                             errorPacket.getLength(), incomingDatagram.getSocketAddress());
                     socket.send(errorDatagram);
@@ -102,26 +109,22 @@ public class TftpClient {
 
             socket.setSoTimeout(SOCKET_TIMEOUT);
             attempts = 0;
-            while (attempts++ < MAX_ATTEMPTS) {
-                boolean exceptionThrown = false;
-
+            gotResponse = true;
+            while (gotResponse && attempts++ < MAX_ATTEMPTS) {
                 try {
                     socket.receive(incomingDatagram);
-                } catch (SocketTimeoutException e) {
-                    exceptionThrown = true;
-                }
-                if (exceptionThrown)
-                    break;
-                else {
-                    TftpPacket receivedPacked = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
+
+                    final TftpPacket receivedPacked = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
                     if ((receivedPacked instanceof DataPacket) && (((DataPacket) receivedPacked).getBlockNum()) == lastDataPacket.getBlockNum()) {
                         final AckPacket ackPacket = new AckPacket(lastDataPacket.getBlockNum());
                         ackDatagram = new DatagramPacket(ackPacket.toBytes(), ackPacket.getLength(), sessionAddress);
                         socket.send(ackDatagram);
                     }
+                } catch (SocketTimeoutException ignored) {
+                    gotResponse = false;
                 }
             }
-            if (attempts > MAX_ATTEMPTS)
+            if (attempts == MAX_ATTEMPTS + 1)
                 System.err.println("Server didn't get last ACK: " + Short.toUnsignedInt(lastDataPacket.getBlockNum()));
 
             System.out.println("\rFile: " + localFilename + " got " + realDataLength + " bytes. Finished.\n");
@@ -136,58 +139,62 @@ public class TftpClient {
         try (final DatagramSocket socket = new DatagramSocket();
              final FileInputStream fileInputStream = new FileInputStream(localFile)) {
 
-            socket.setSoTimeout(TIMEOUT_IN_SECONDS * 1000);
+            socket.setSoTimeout(SOCKET_TIMEOUT);
 
             final WrqPacket wrqDatagram = new WrqPacket(remoteFilename, sendMode);
             final DatagramPacket wrqPacket = new DatagramPacket(wrqDatagram.toBytes(), wrqDatagram.getLength(), remoteAddress);
             final DatagramPacket incomingDatagram = new DatagramPacket(new byte[DATAGRAM_MAX_SIZE], DATAGRAM_MAX_SIZE);
+            TftpPacket inputPacket = null;
 
             int attempts = 0;
-            boolean receivedResponse = false;
-            while (!receivedResponse && attempts++ < MAX_ATTEMPTS) {
+            boolean gotResponse = false;
+            while (!gotResponse && attempts++ < MAX_ATTEMPTS) {
                 socket.send(wrqPacket);
 
                 try {
                     socket.receive(incomingDatagram);
-                    receivedResponse = true;
-                } catch (SocketTimeoutException e) {
-                    if (attempts > MAX_ATTEMPTS)
-                        throw new SocketTimeoutException();
+
+                    inputPacket = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
+                    if (inputPacket instanceof AckPacket && ((AckPacket) inputPacket).getAcknowledgeNumber() == 0)
+                        gotResponse = true;
+                    else if (inputPacket instanceof ErrorPacket)
+                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                    else
+                        System.err.println("Received non-ACK packet, skipping it...");
+                } catch (SocketTimeoutException ignored) {
                 }
             }
-
-
-            TftpPacket datagram = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
-            if (!(datagram instanceof AckPacket) || ((AckPacket) datagram).getAcknowledgeNumber() != 0)
-                throw new Exception();
+            if (attempts == MAX_ATTEMPTS + 1)
+                throw new SocketTimeoutException();
 
             final SocketAddress sessionAddress = incomingDatagram.getSocketAddress();
 
             final byte[] dataBody = new byte[512];
             int readLength = fileInputStream.read(dataBody);
             long realDataLength = readLength;
-            DataPacket dataDatagram = new DataPacket((short) (((AckPacket) datagram).getAcknowledgeNumber() + 1), Arrays.copyOf(dataBody, readLength));
-            DatagramPacket dataPacket = new DatagramPacket(dataDatagram.toBytes(), dataDatagram.getLength(), incomingDatagram.getSocketAddress());
+            DataPacket dataPacket = new DataPacket((short) (((AckPacket) inputPacket).getAcknowledgeNumber() + 1), Arrays.copyOf(dataBody, readLength));
+            DatagramPacket dataDatagram = new DatagramPacket(dataPacket.toBytes(), dataPacket.getLength(), incomingDatagram.getSocketAddress());
+            socket.send(dataDatagram);
 
-            socket.send(dataPacket);
-            socket.setSoTimeout(TIMEOUT_IN_SECONDS * MAX_ATTEMPTS * 1000);
+            socket.setSoTimeout(SOCKET_TIMEOUT * MAX_ATTEMPTS);
             while (readLength == 512) {
                 boolean shouldSend = false;
                 socket.receive(incomingDatagram);
-                datagram = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
+                inputPacket = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
 
                 if (sessionAddress.equals(incomingDatagram.getSocketAddress())) {
-                    if (datagram instanceof AckPacket) {
-                        if (((AckPacket) datagram).getAcknowledgeNumber() == dataDatagram.getBlockNum()) {
+                    if (inputPacket instanceof AckPacket) {
+                        if (((AckPacket) inputPacket).getAcknowledgeNumber() == dataPacket.getBlockNum()) {
+                            shouldSend = true;
                             readLength = fileInputStream.read(dataBody);
                             realDataLength += readLength;
-                            shouldSend = true;
-                        } else if (((AckPacket) datagram).getAcknowledgeNumber() == (short) (dataDatagram.getBlockNum() - 1)) {
+                        } else if (((AckPacket) inputPacket).getAcknowledgeNumber() == (short) (dataPacket.getBlockNum() - 1)) {
                             shouldSend = true;
                         }
-                    } else {
-                        throw new Exception("");
-                    }
+                    } else if (inputPacket instanceof ErrorPacket)
+                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                    else
+                        System.err.println("Received non-ACK packet, skipping it...");
                 } else {
                     final ErrorPacket errorPacket = new ErrorPacket(ErrorPacket.TFTP_ERROR_UNKNOWN_TID, "My TID already in use");
                     final DatagramPacket errorDatagram = new DatagramPacket(errorPacket.toBytes(),
@@ -196,9 +203,9 @@ public class TftpClient {
                 }
 
                 if (shouldSend) {
-                    dataDatagram = new DataPacket((short) (((AckPacket) datagram).getAcknowledgeNumber() + 1), Arrays.copyOf(dataBody, readLength));
-                    dataPacket = new DatagramPacket(dataDatagram.toBytes(), dataDatagram.getLength(), incomingDatagram.getSocketAddress());
-                    socket.send(dataPacket);
+                    dataPacket = new DataPacket((short) (((AckPacket) inputPacket).getAcknowledgeNumber() + 1), Arrays.copyOf(dataBody, readLength));
+                    dataDatagram = new DatagramPacket(dataPacket.toBytes(), dataPacket.getLength(), incomingDatagram.getSocketAddress());
+                    socket.send(dataDatagram);
                 }
 
                 System.out.print("\rFile: " + localFilename + " sent " + realDataLength + " bytes");
@@ -206,17 +213,17 @@ public class TftpClient {
 
             socket.setSoTimeout(SOCKET_TIMEOUT);
             attempts = 0;
-            receivedResponse = false;
-            while (!receivedResponse && attempts++ < MAX_ATTEMPTS) {
+            gotResponse = false;
+            while (!gotResponse && attempts++ < MAX_ATTEMPTS) {
                 boolean shouldResend = false;
                 try {
                     socket.receive(incomingDatagram);
-                    datagram = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
+                    inputPacket = TftpPacket.makeTftpPacket(incomingDatagram.getData(), incomingDatagram.getLength());
                     if (sessionAddress.equals(incomingDatagram.getSocketAddress())) {
-                        if (datagram instanceof AckPacket) {
-                            if (((AckPacket) datagram).getAcknowledgeNumber() == dataDatagram.getBlockNum()) {
-                                receivedResponse = true;
-                            } else if (((AckPacket) datagram).getAcknowledgeNumber() == (short) (dataDatagram.getBlockNum() - 1)) {
+                        if (inputPacket instanceof AckPacket) {
+                            if (((AckPacket) inputPacket).getAcknowledgeNumber() == dataPacket.getBlockNum()) {
+                                gotResponse = true;
+                            } else if (((AckPacket) inputPacket).getAcknowledgeNumber() == (short) (dataPacket.getBlockNum() - 1)) {
                                 shouldResend = true;
                             }
                         }
@@ -226,8 +233,10 @@ public class TftpClient {
                 }
 
                 if (shouldResend)
-                    socket.send(dataPacket);
+                    socket.send(dataDatagram);
             }
+            if (attempts == MAX_ATTEMPTS + 1)
+                System.err.println("Didn't received last ACK: " + Short.toUnsignedInt(dataPacket.getBlockNum()));
 
             System.out.println("\rFile: " + localFilename + " sent " + realDataLength + " bytes. Finished.\n");
         }

@@ -82,12 +82,16 @@ public abstract class TftpPacket {
                 short errorCode = byteToShort(data[2], data[3]);
                 int errorMessageStartIndex = 4;
                 int errorMessageEndIndex = 4;
-                while (data[errorMessageEndIndex] != 0)
-                    errorMessageEndIndex++;
+                try {
+                    while (data[errorMessageEndIndex] != 0)
+                        errorMessageEndIndex++;
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    throw new UnterminatedPacketFieldException("Unterminated field 'ErrMsg' in ERROR packet");
+                }
                 String errorMessage = new String(Arrays.copyOfRange(data, errorMessageStartIndex, errorMessageEndIndex));
                 return new ErrorPacket(errorCode, errorMessage);
             default:
-                throw new PacketWithUnsupportedOpcodeException("Can't create any TftpPacket with opcode: " + opcode);
+                throw new PacketWithUnsupportedOpcodeException("Can't create TftpPacket with opcode: " + opcode);
         }
     }
 
