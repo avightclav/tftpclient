@@ -1,6 +1,6 @@
 package tftp;
 
-import tftp.exception.ErrorDatagramException;
+import tftp.exception.ErrorPacketException;
 import tftp.packet.*;
 import tftp.sendmode.SendMode;
 
@@ -51,7 +51,7 @@ public class TftpClient {
                     if (inputPacket instanceof DataPacket && ((DataPacket) inputPacket).getBlockNum() == 1) {
                         gotResponse = true;
                     } else if (inputPacket instanceof ErrorPacket)
-                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                        throw new ErrorPacketException("Received error message", (ErrorPacket) inputPacket);
                     else
                         System.err.println("Received non-data packet, skipping it...");
 
@@ -88,7 +88,7 @@ public class TftpClient {
                             shouldAck = true;
                         }
                     } else if (inputPacket instanceof ErrorPacket)
-                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                        throw new ErrorPacketException("Received error message", (ErrorPacket) inputPacket);
                     else
                         System.err.println("Received non-data packet, skipping it...");
                 } else { // if rrq has been duplicated skip it
@@ -158,7 +158,7 @@ public class TftpClient {
                     if (inputPacket instanceof AckPacket && ((AckPacket) inputPacket).getAcknowledgeNumber() == 0)
                         gotResponse = true;
                     else if (inputPacket instanceof ErrorPacket)
-                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                        throw new ErrorPacketException("Received error message", (ErrorPacket) inputPacket);
                     else
                         System.err.println("Received non-ACK packet, skipping it...");
                 } catch (SocketTimeoutException ignored) {
@@ -192,7 +192,7 @@ public class TftpClient {
                             shouldSend = true;
                         }
                     } else if (inputPacket instanceof ErrorPacket)
-                        throw new ErrorDatagramException("Received error message", (ErrorPacket) inputPacket);
+                        throw new ErrorPacketException("Received error message", (ErrorPacket) inputPacket);
                     else
                         System.err.println("Received non-ACK packet, skipping it...");
                 } else {
